@@ -1,5 +1,12 @@
 import React, {useState} from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert,
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  Modal,
 } from 'react-native';
 import ExerciseForm from '../components/ExerciseForm';
 import StorageService from '../services/StorageService';
@@ -13,16 +20,24 @@ import {
   formatReps,
   sanitizeExercise,
 } from '../utils/helpers';
+import { REP_RANGES } from '../utils/constants';
 
 const ExerciseDetailScreen = ({navigation, route}) => {
   const {exercise, dayKey, onExerciseUpdated} = route.params;
   const [isEditing, setIsEditing] = useState(false);
+  const [currentExercise, setCurrentExercise] = useState(exercise);
+  
+  // Estados para edición inline
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
 
-   const [showSuccessModal, setShowSuccessModal] = useState(false);
-   const [showErrorModal, setShowErrorModal] = useState(false);
-   const [showDeleteModal, setShowDeleteModal] = useState(false);
-   const [successMessage, setSuccessMessage] = useState('');
-   const [errorMessage, setErrorMessage] = useState('');
+  // Estados para modales
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -32,7 +47,7 @@ const ExerciseDetailScreen = ({navigation, route}) => {
           onPress={() => setIsEditing(!isEditing)}
           activeOpacity={0.7}>
           <Text style={styles.headerButtonText}>
-            {isEditing ? 'Cancelar' : 'Editar'}
+            {isEditing ? 'Cancelar' : 'Editar Todo'}
           </Text>
         </TouchableOpacity>
       ),
@@ -50,6 +65,7 @@ const ExerciseDetailScreen = ({navigation, route}) => {
       );
       
       if (success) {
+        setCurrentExercise({...currentExercise, ...sanitizedExercise});
         setSuccessMessage(`${sanitizedExercise.nombre} se actualizó correctamente`);
         setShowSuccessModal(true);
       } else {
@@ -91,11 +107,86 @@ const ExerciseDetailScreen = ({navigation, route}) => {
     }
   };
 
+  // Funciones para edición inline
+  const startEditing = (field, currentValue) => {
+    setEditingField(field);
+    setEditValue(String(currentValue));
+    setShowEditModal(true);
+  };
+
+  const cancelEditing = () => {
+    setShowEditModal(false);
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const saveFieldEdit = async () => {
+    if (!editingField || (editingField !== 'repeticiones' && editValue.trim() === '')) return;
+    if (editingField === 'repeticiones' && !editValue) return;
+
+    try {
+      const updatedExercise = {
+        ...currentExercise,
+        [editingField]: editingField === 'peso' || editingField === 'series' 
+          ? parseFloat(editValue) || 0
+          : editingField === 'repeticiones'
+          ? editValue // Para repeticiones, guardamos el string del rango
+          : editValue.trim()
+      };
+
+      const sanitizedExercise = sanitizeExercise(updatedExercise);
+      
+      const success = await StorageService.updateExercise(
+        dayKey,
+        exercise.id,
+        sanitizedExercise
+      );
+      
+      if (success) {
+        setCurrentExercise(updatedExercise);
+        setShowEditModal(false);
+        setEditingField(null);
+        setEditValue('');
+        
+        const fieldNames = {
+          nombre: 'nombre',
+          series: 'series',
+          repeticiones: 'repeticiones', 
+          peso: 'peso',
+          tipo: 'tipo',
+          notas: 'notas'
+        };
+        
+        setSuccessMessage(`${fieldNames[editingField]} actualizado correctamente`);
+        setShowSuccessModal(true);
+      } else {
+        throw new Error('No se pudo actualizar el campo');
+      }
+    } catch (error) {
+      console.error('Error al actualizar campo:', error);
+      setErrorMessage('No se pudo actualizar el campo. Por favor intenta de nuevo.');
+      setShowErrorModal(true);
+      setShowEditModal(false);
+    }
+  };
+
+  const getFieldLabel = (field) => {
+    const labels = {
+      nombre: 'Nombre del ejercicio',
+      series: 'Series',
+      repeticiones: 'Repeticiones',
+      peso: 'Peso (kg)',
+      tipo: 'Tipo de ejercicio',
+      notas: 'Notas'
+    };
+    return labels[field] || field;
+  };
+
   if (isEditing) {
     return (
       <View style={globalStyles.container}>
         <ExerciseForm
-          initialData={exercise}
+          initialData={currentExercise}
           onSave={handleSave}
           onCancel={handleCancel}
         />
@@ -125,42 +216,101 @@ const ExerciseDetailScreen = ({navigation, route}) => {
     <View style={globalStyles.container}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
+        {/* Header con nombre y tipo */}
         <View style={styles.header}>
           <View style={styles.headerInfo}>
-            <Text style={styles.exerciseName}>{exercise.nombre}</Text>
-            {exercise.tipo && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{exercise.tipo}</Text>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldContent}>
+                <Text style={styles.exerciseName}>{currentExercise.nombre}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => startEditing('nombre', currentExercise.nombre)}
+                activeOpacity={0.7}>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {currentExercise.tipo && (
+              <View style={styles.fieldRow}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{currentExercise.tipo}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => startEditing('tipo', currentExercise.tipo)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.editIcon}>✏️</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>
         </View>
 
+        {/* Stats con edición inline */}
         <View style={styles.statsSection}>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{exercise.series}</Text>
-              <Text style={styles.statLabel}>Series</Text>
+              <View style={styles.statHeader}>
+                <View style={styles.statContent}>
+                  <Text style={styles.statValue}>{currentExercise.series}</Text>
+                  <Text style={styles.statLabel}>Series</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editButtonStat}
+                  onPress={() => startEditing('series', currentExercise.series)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.editIconSmall}>✏️</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{formatReps(exercise.repeticiones)}</Text>
-              <Text style={styles.statLabel}>Repeticiones</Text>
+              <View style={styles.statHeader}>
+                <View style={styles.statContent}>
+                  <Text style={styles.statValue}>{formatReps(currentExercise.repeticiones)}</Text>
+                  <Text style={styles.statLabel}>Repeticiones</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editButtonStat}
+                  onPress={() => startEditing('repeticiones', currentExercise.repeticiones)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.editIconSmall}>✏️</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{formatWeight(exercise.peso)}</Text>
-              <Text style={styles.statLabel}>Peso</Text>
+              <View style={styles.statHeader}>
+                <View style={styles.statContent}>
+                  <Text style={styles.statValue}>{formatWeight(currentExercise.peso)}</Text>
+                  <Text style={styles.statLabel}>Peso</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editButtonStat}
+                  onPress={() => startEditing('peso', currentExercise.peso)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.editIconSmall}>✏️</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Notas */}
-        {exercise.notas && (
+        {/* Notas con edición inline */}
+        {currentExercise.notas && (
           <View style={styles.notesSection}>
-            <Text style={styles.sectionTitle}>Notas</Text>
+            <View style={styles.fieldRow}>
+              <Text style={styles.sectionTitle}>Notas</Text>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => startEditing('notas', currentExercise.notas)}
+                activeOpacity={0.7}>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.notesContainer}>
-              <Text style={styles.notesText}>{exercise.notas}</Text>
+              <Text style={styles.notesText}>{currentExercise.notas}</Text>
             </View>
           </View>
         )}
@@ -174,15 +324,96 @@ const ExerciseDetailScreen = ({navigation, route}) => {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Modal de edición inline */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showEditModal}
+        onRequestClose={cancelEditing}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.editModalContainer}>
+            <Text style={styles.editModalTitle}>
+              Editar {getFieldLabel(editingField)}
+            </Text>
+            
+            {editingField === 'repeticiones' ? (
+              // Selector para repeticiones
+              <View style={styles.repOptionsContainer}>
+                {REP_RANGES.map((range, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.repOption,
+                      editValue === range && styles.repOptionSelected
+                    ]}
+                    onPress={() => setEditValue(range)}
+                    activeOpacity={0.7}>
+                    <Text style={[
+                      styles.repOptionText,
+                      editValue === range && styles.repOptionTextSelected
+                    ]}>
+                      {range}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              // Input normal para otros campos
+              <TextInput
+                style={styles.editInput}
+                value={editValue}
+                onChangeText={setEditValue}
+                placeholder={`Ingresa ${getFieldLabel(editingField)}`}
+                keyboardType={
+                  editingField === 'peso' || editingField === 'series'
+                    ? 'numeric'
+                    : 'default'
+                }
+                multiline={editingField === 'notas'}
+                numberOfLines={editingField === 'notas' ? 4 : 1}
+                autoFocus
+              />
+            )}
+            
+            <View style={styles.editModalButtons}>
+              <TouchableOpacity
+                style={[styles.editModalButton, styles.cancelButton]}
+                onPress={cancelEditing}>
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.editModalButton, styles.saveButton]}
+                onPress={saveFieldEdit}
+                disabled={editingField === 'repeticiones' && !editValue}>
+                <Text style={[
+                  styles.saveButtonText,
+                  editingField === 'repeticiones' && !editValue && styles.disabledButtonText
+                ]}>
+                  Guardar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modales */}
       <ConfirmModal
         visible={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         title="Eliminar Ejercicio"
-        message={`¿Estás seguro de que quieres eliminar "${exercise.nombre}"?`}
+        message={`¿Estás seguro de que quieres eliminar "${currentExercise.nombre}"?`}
         onConfirm={handleConfirmDelete}
         confirmText="Eliminar"
         cancelText="Cancelar"
+      />
+
+      <SuccessModal
+        visible={showSuccessModal}
+        onClose={() => setShowSuccessModal(false)}
+        title="¡Actualizado!"
+        message={successMessage}
       />
 
       <CustomModal
@@ -216,22 +447,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...globalStyles.shadow,
   },
-  placeholderText: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
   headerInfo: {
     padding: 16,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  fieldContent: {
+    flex: 1,
   },
   exerciseName: {
     fontSize: 24,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 8,
   },
   badge: {
     backgroundColor: colors.primary,
@@ -245,6 +476,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  editButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  editIcon: {
+    fontSize: 16,
+  },
+  editButtonStat: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  editIconSmall: {
+    fontSize: 12,
+  },
   statsSection: {
     margin: 16,
   },
@@ -252,7 +499,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    flex: 1,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -266,7 +513,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 80,
     flex: 1,
+    position: 'relative',
     ...globalStyles.shadow,
+  },
+  statHeader: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  statContent: {
+    alignItems: 'center',
   },
   statValue: {
     fontSize: 20,
@@ -278,27 +533,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     textAlign: 'center',
-  },
-  infoSection: {
-    margin: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray200,
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '600',
   },
   notesSection: {
     margin: 16,
@@ -325,6 +559,91 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: colors.white,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // Estilos del modal de edición
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  editModalContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  editModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    textAlignVertical: 'top',
+  },
+  editModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  editModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.gray200,
+  },
+  cancelButtonText: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: colors.primary,
+  },
+  saveButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+  },
+  disabledButtonText: {
+    color: colors.gray400,
+  },
+  // Estilos para selector de repeticiones
+  repOptionsContainer: {
+    marginBottom: 20,
+  },
+  repOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.gray300,
+    backgroundColor: colors.white,
+  },
+  repOptionSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  repOptionText: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  repOptionTextSelected: {
+    color: colors.white,
     fontWeight: '600',
   },
 });
