@@ -478,15 +478,13 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
-    marginLeft: 8,
+    marginHorizontal: 8,
   },
   editIcon: {
     fontSize: 16,
   },
   editButtonStat: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
+    marginHorizontal: 10,
     padding: 4,
   },
   editIconSmall: {

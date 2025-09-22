@@ -41,23 +41,26 @@ export const validateExercise = (exercise) => {
 
 // Formatear peso para mostrar
 export const formatWeight = (weight) => {
-  if (!weight || weight.trim() === '') {
+  if (weight === null || weight === undefined || weight === '') {
     return 'Sin peso';
   }
-  
+
+  const weightStr = String(weight).trim(); // convierte números a string y elimina espacios
+
   // Si ya tiene unidad, devolverlo tal como está
-  if (weight.toLowerCase().includes('kg') || weight.toLowerCase().includes('lb')) {
-    return weight;
+  if (weightStr.toLowerCase().includes('kg') || weightStr.toLowerCase().includes('lb')) {
+    return weightStr;
   }
-  
+
   // Si es solo número, agregar kg
-  const numericWeight = parseFloat(weight);
+  const numericWeight = parseFloat(weightStr);
   if (!isNaN(numericWeight)) {
     return `${numericWeight} kg`;
   }
-  
-  return weight;
+
+  return weightStr;
 };
+
 
 // Formatear repeticiones para mostrar
 export const formatReps = (reps) => {
@@ -107,7 +110,7 @@ export const sanitizeExercise = (exercise) => {
     nombre: exercise.nombre?.trim() || '',
     series: parseInt(exercise.series) || 0,
     repeticiones: exercise.repeticiones?.trim() || '',
-    peso: exercise.peso?.trim() || '',
+    peso: parseFloat(exercise.peso) || 0,
     notas: exercise.notas?.trim() || '',
     imagen: exercise.imagen || null,
     tipo: exercise.tipo?.trim() || '',
