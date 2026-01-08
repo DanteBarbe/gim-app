@@ -44,7 +44,16 @@ const ExerciseDetailScreen = ({navigation, route}) => {
 
   const handleSave = async (updatedData) => {
     try {
-      const sanitizedExercise = sanitizeExercise(updatedData);
+      let sanitizedExercise = sanitizeExercise(updatedData);
+      
+      if (sanitizedExercise.peso !== currentExercise.peso) {
+         sanitizedExercise.history = [
+            { date: new Date().toISOString(), weight: sanitizedExercise.peso },
+            ...(currentExercise.history || [])
+         ];
+      } else {
+         sanitizedExercise.history = currentExercise.history || [];
+      }
       
       const success = await StorageService.updateExercise(
         dayKey,
@@ -121,6 +130,16 @@ const ExerciseDetailScreen = ({navigation, route}) => {
           ? editValue // Para repeticiones, guardamos el string del rango
           : editValue.trim()
       };
+
+      if (editingField === 'peso') {
+        const newWeight = parseFloat(editValue) || 0;
+        if (newWeight !== currentExercise.peso) {
+          updatedExercise.history = [
+            { date: new Date().toISOString(), weight: newWeight },
+            ...(currentExercise.history || [])
+          ];
+        }
+      }
 
       const sanitizedExercise = sanitizeExercise(updatedExercise);
       
@@ -302,6 +321,28 @@ const ExerciseDetailScreen = ({navigation, route}) => {
             </View>
           </View>
         )}
+
+        <View style={styles.historySection}>
+           <Text style={styles.sectionTitle}>Historial de Progreso 📈</Text>
+           <View style={styles.historyContainer}>
+             {currentExercise.history && currentExercise.history.length > 0 ? (
+               currentExercise.history.map((record, index) => (
+                 <View key={index} style={styles.historyRow}>
+                   <Text style={styles.historyDate}>
+                     {new Date(record.date).toLocaleDateString()}
+                   </Text>
+                   <Text style={styles.historyWeight}>
+                     {record.weight} kg
+                   </Text>
+                 </View>
+               ))
+             ) : (
+               <Text style={styles.emptyHistoryText}>
+                 No hay historial registrado. Modifica el peso para comenzar.
+               </Text>
+             )}
+           </View>
+        </View>
 
         {/* Botón de eliminar */}
         <TouchableOpacity
@@ -617,6 +658,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.gray300,
     backgroundColor: colors.white,
+  },
+  historySection: {
+    margin: 16,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  historyDate: {
+    color: colors.textSecondary,
+    fontSize: 16,
+  },
+  historyWeight: {
+    color: colors.primary,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  emptyHistoryText: {
+    color: colors.gray400,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 10,
+  },
+  historyContainer: {
+    padding: 16,
+    borderRadius: 12,
   },
   repOptionSelected: {
     backgroundColor: colors.primary,

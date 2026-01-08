@@ -21,6 +21,12 @@ const AddExerciseScreen = ({navigation, route}) => {
       // Sanitizar y validar datos
       const sanitizedExercise = sanitizeExercise(exerciseData);
       
+      // NUEVO: Inicializar historial con el primer peso
+      sanitizedExercise.history = [{
+        date: new Date().toISOString(),
+        weight: sanitizedExercise.peso || 0
+      }];
+      
       // Guardar ejercicio
       const newExercise = await StorageService.addExercise(dayKey, sanitizedExercise);
       
