@@ -174,13 +174,11 @@ const ExerciseForm = ({initialData, onSave, onCancel}) => {
             {keyboardType: 'numeric', maxLength: 2}
           )}
           
-          {renderSelectButton(
+          {renderInput(
             'Repeticiones *',
             'repeticiones',
             'Ej: 8-10',
-            REP_RANGES,
-            showRepOptions,
-            setShowRepOptions
+            {keyboardType: 'default'}
           )}
         </View>
 
