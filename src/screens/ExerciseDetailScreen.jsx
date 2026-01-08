@@ -368,23 +368,14 @@ const ExerciseDetailScreen = ({navigation, route}) => {
             {editingField === 'repeticiones' ? (
               // Selector para repeticiones
               <View style={styles.repOptionsContainer}>
-                {REP_RANGES.map((range, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.repOption,
-                      editValue === range && styles.repOptionSelected
-                    ]}
-                    onPress={() => setEditValue(range)}
-                    activeOpacity={0.7}>
-                    <Text style={[
-                      styles.repOptionText,
-                      editValue === range && styles.repOptionTextSelected
-                    ]}>
-                      {range}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                  <TextInput
+                    style={styles.editInput}
+                    value={editValue}
+                    onChangeText={setEditValue}
+                    placeholder={`Ingresa ${getFieldLabel(editingField)}`}
+                    keyboardType='string'
+                    autoFocus
+                  />
               </View>
             ) : (
               // Input normal para otros campos
