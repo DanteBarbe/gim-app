@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity,
 } from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
@@ -17,6 +17,34 @@ const DayRoutineScreen = ({navigation, route}) => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [exerciseToDelete, setExerciseToDelete] = useState(null);
+
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (isTimerRunning) {
+      timerRef.current = setInterval(() => {
+        setTimerSeconds(prev => prev + 1);
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isTimerRunning]);
+
+  const toggleTimer = () => setIsTimerRunning(!isTimerRunning);
+  
+  const resetTimer = () => {
+    setIsTimerRunning(false);
+    setTimerSeconds(0);
+  };
+
+  const formatTime = (secs) => {
+    const mins = Math.floor(secs / 60);
+    const remainingSecs = secs % 60;
+    return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
+  };
 
   const loadExercises = async () => {
     try {
@@ -98,7 +126,28 @@ const DayRoutineScreen = ({navigation, route}) => {
   );
 
   return (
+    
     <View style={globalStyles.container}>
+      <View style={styles.timerContainer}>
+        <Text style={styles.timerTitle}>⏱️ Descanso</Text>
+        <Text style={styles.timerValue}>{formatTime(timerSeconds)}</Text>
+        
+        <View style={styles.timerControls}>
+          <TouchableOpacity 
+            style={[styles.timerButton, isTimerRunning ? styles.pauseBtn : styles.playBtn]} 
+            onPress={toggleTimer}
+          >
+            <Text style={styles.timerButtonText}>
+              {isTimerRunning ? 'Pausar' : 'Iniciar'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={[styles.timerButton, styles.resetBtn]} onPress={resetTimer}>
+            <Text style={styles.timerButtonText}>Reiniciar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <FlatList
         data={exercises}
         renderItem={renderExercise}
@@ -191,6 +240,47 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+   timerContainer: {
+    backgroundColor: colors.white,
+    margin: 16,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  timerTitle: {
+    fontSize: 16,
+    color: colors.gray600,
+    marginBottom: 8,
+  },
+  timerValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: colors.primary,
+    fontVariant: ['tabular-nums'], // Evita que los números "bailen" al cambiar
+  },
+  timerControls: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 16,
+  },
+  timerButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  playBtn: { backgroundColor: colors.success }, // Asegúrate de tener este color o usa '#4CAF50'
+  pauseBtn: { backgroundColor: '#FF9800' },
+  resetBtn: { backgroundColor: colors.gray400 },
+  timerButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  }
 });
 
 export default DayRoutineScreen;

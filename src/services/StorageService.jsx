@@ -14,6 +14,19 @@ class StorageService {
     }
   }
 
+  // Guardar el orden actualizado de una rutina diaria
+  static async updateDayRoutineOrder(dayKey, newExercises) {
+    try {
+      const routines = await this.getRoutines();
+      routines[dayKey] = newExercises; // Reemplazamos la lista con el nuevo orden
+      await this.saveRoutines(routines);
+      return true;
+    } catch (error) {
+      console.error('Error al reordenar rutina:', error);
+      return false;
+    }
+  }
+  
   // Guardar todas las rutinas
   static async saveRoutines(routines) {
     try {

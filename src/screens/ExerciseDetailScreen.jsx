@@ -1,13 +1,5 @@
-import React, {useState} from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-} from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal } from 'react-native';
 import ExerciseForm from '../components/ExerciseForm';
 import StorageService from '../services/StorageService';
 import {globalStyles} from '../styles/globalStyles';
@@ -15,11 +7,7 @@ import {colors} from '../styles/colors';
 import CustomModal from '../components/CustomModal';
 import ConfirmModal from '../components/ConfirmModal';
 import SuccessModal from '../components/SuccessModal';
-import {
-  formatWeight,
-  formatReps,
-  sanitizeExercise,
-} from '../utils/helpers';
+import { formatWeight, formatReps, sanitizeExercise } from '../utils/helpers';
 import { REP_RANGES } from '../utils/constants';
 
 const ExerciseDetailScreen = ({navigation, route}) => {
