@@ -30,15 +30,17 @@ export const parseRoutineText = (text) => {
     if (currentDayKey && (trimmedLine.startsWith('-') || trimmedLine.startsWith('•'))) {
       const parts = trimmedLine.replace(/^[-•]\s*/, '').split('|').map(p => p.trim());
       
-      // Formato esperado: Nombre | Series | Reps | Peso | Notas
+      // Formato esperado: Nombre | Series | Reps | Peso | Tipo(Músculo) | Notas
       const exercise = {
         id: Date.now().toString() + Math.random().toString().slice(2, 5), // ID temporal único
         nombre: parts[0] || 'Ejercicio sin nombre',
         series: parts[1] || '4',
         repeticiones: parts[2] || '10',
         peso: parts[3] || '',
-        notas: parts[4] || '',
+        tipo: parts[4] || '',
+        notas: parts[5] || '',
         createdAt: new Date().toISOString(),
+        history: [],
       };
 
       routines[currentDayKey].push(exercise);

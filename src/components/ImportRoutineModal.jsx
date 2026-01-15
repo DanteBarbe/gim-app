@@ -21,22 +21,43 @@ const ImportRoutineModal = ({ visible, onClose, onImportSuccess }) => {
         return;
       }
 
-      // Guardar en Storage
-      // Primero obtenemos las rutinas actuales para no borrar lo que ya existe si no es necesario
-      // Ojo: Esta lógica REEMPLAZA o AGREGA ejercicios a los días detectados.
+      // Obtener rutinas actuales
       const currentRoutines = await StorageService.getRoutines();
       
+      let addedCount = 0; // Para contar cuántos ejercicios NUEVOS se agregaron realmente
+
       Object.keys(newRoutines).forEach(dayKey => {
-        // Opción: Agregar a lo existente
         if (!currentRoutines[dayKey]) currentRoutines[dayKey] = [];
-        currentRoutines[dayKey] = [...currentRoutines[dayKey], ...newRoutines[dayKey]];
+
+        // 1. Hacemos una lista de los nombres que YA existen (normalizados a minúsculas)
+        const existingNames = new Set(
+            currentRoutines[dayKey].map(ex => ex.nombre.toLowerCase().trim())
+        );
+
+        // 2. Filtramos los ejercicios nuevos: Solo pasan los que NO están en la lista
+        const uniqueExercises = newRoutines[dayKey].filter(newEx => {
+            const isDuplicate = existingNames.has(newEx.nombre.toLowerCase().trim());
+            return !isDuplicate;
+        });
+
+        // 3. Agregamos solo los únicos
+        if (uniqueExercises.length > 0) {
+            currentRoutines[dayKey] = [...currentRoutines[dayKey], ...uniqueExercises];
+            addedCount += uniqueExercises.length;
+        }
       });
 
       await StorageService.saveRoutines(currentRoutines);
       
-      Alert.alert('¡Éxito!', `Se importaron rutinas para ${daysFound} días.`);
+      // Mensaje feedback más útil
+      if (addedCount > 0) {
+          Alert.alert('¡Éxito!', `Se agregaron ${addedCount} ejercicios nuevos a tu rutina.`);
+      } else {
+          Alert.alert('Información', 'Tu rutina ya tenía todos estos ejercicios. No se agregaron duplicados.');
+      }
+      
       setText('');
-      onImportSuccess(); // Recargar datos en HomeScreen
+      if (onImportSuccess) onImportSuccess();
       onClose();
 
     } catch (error) {

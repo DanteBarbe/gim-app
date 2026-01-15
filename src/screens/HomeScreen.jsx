@@ -48,6 +48,7 @@ const HomeScreen = ({navigation}) => {
       <ImportRoutineModal
       visible={importModalVisible}
       onClose={() => setImportModalVisible(false)}
+      onImportSuccess={() => setImportModalVisible(false)}
       />
     </View>
   );
