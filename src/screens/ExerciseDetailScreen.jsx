@@ -8,7 +8,6 @@ import CustomModal from '../components/CustomModal';
 import ConfirmModal from '../components/ConfirmModal';
 import SuccessModal from '../components/SuccessModal';
 import { formatWeight, formatReps, sanitizeExercise } from '../utils/helpers';
-import { REP_RANGES } from '../utils/constants';
 
 const ExerciseDetailScreen = ({navigation, route}) => {
   const {exercise, dayKey, onExerciseUpdated} = route.params;
@@ -46,9 +45,20 @@ const ExerciseDetailScreen = ({navigation, route}) => {
     try {
       let sanitizedExercise = sanitizeExercise(updatedData);
       
-      if (sanitizedExercise.peso !== currentExercise.peso) {
+      // Comprobar si cambió peso, repeticiones o series
+      const historyChanged = 
+        sanitizedExercise.peso !== currentExercise.peso ||
+        sanitizedExercise.repeticiones !== currentExercise.repeticiones ||
+        sanitizedExercise.series !== currentExercise.series;
+
+      if (historyChanged) {
          sanitizedExercise.history = [
-            { date: new Date().toISOString(), weight: sanitizedExercise.peso },
+            { 
+              date: new Date().toISOString(), 
+              weight: sanitizedExercise.peso,
+              reps: sanitizedExercise.repeticiones,
+              sets: sanitizedExercise.series
+            },
             ...(currentExercise.history || [])
          ];
       } else {
@@ -72,6 +82,71 @@ const ExerciseDetailScreen = ({navigation, route}) => {
       console.error('Error al actualizar ejercicio:', error);
       setErrorMessage('No se pudo actualizar el ejercicio. Por favor intenta de nuevo.');
       setShowErrorModal(true);
+    }
+  };
+
+  const saveFieldEdit = async () => {
+    if (!editingField || editValue.trim() === '') return;
+
+    try {
+      const updatedExercise = {
+        ...currentExercise,
+        // Quitamos el parseFloat del peso para permitir "40, 45, 50"
+        [editingField]: editValue.trim()
+      };
+
+      // Si editamos algo relevante, lo agregamos al historial
+      const isHistoryTrigger = ['peso', 'series', 'repeticiones'].includes(editingField);
+      
+      if (isHistoryTrigger && currentExercise[editingField] !== editValue.trim()) {
+        updatedExercise.history = [
+          { 
+            date: new Date().toISOString(), 
+            weight: updatedExercise.peso,
+            reps: updatedExercise.repeticiones,
+            sets: updatedExercise.series
+          },
+          ...(currentExercise.history || [])
+        ];
+      } else {
+        updatedExercise.history = currentExercise.history || [];
+      }
+
+      let sanitizedExercise = sanitizeExercise(updatedExercise);
+      // Forzamos que se mantenga el historial por si sanitizeExercise lo borra
+      sanitizedExercise.history = updatedExercise.history;
+      
+      const success = await StorageService.updateExercise(
+        dayKey,
+        exercise.id,
+        sanitizedExercise
+      );
+      
+      if (success) {
+        setCurrentExercise(sanitizedExercise);
+        setShowEditModal(false);
+        setEditingField(null);
+        setEditValue('');
+        
+        const fieldNames = {
+          nombre: 'nombre',
+          series: 'series',
+          repeticiones: 'repeticiones', 
+          peso: 'peso',
+          tipo: 'tipo',
+          notas: 'notas'
+        };
+        
+        setSuccessMessage(`${fieldNames[editingField]} actualizado correctamente`);
+        setShowSuccessModal(true);
+      } else {
+        throw new Error('No se pudo actualizar el campo');
+      }
+    } catch (error) {
+      console.error('Error al actualizar campo:', error);
+      setErrorMessage('No se pudo actualizar el campo. Por favor intenta de nuevo.');
+      setShowErrorModal(true);
+      setShowEditModal(false);
     }
   };
 
@@ -115,66 +190,6 @@ const ExerciseDetailScreen = ({navigation, route}) => {
     setShowEditModal(false);
     setEditingField(null);
     setEditValue('');
-  };
-
-  const saveFieldEdit = async () => {
-    if (!editingField || (editingField !== 'repeticiones' && editValue.trim() === '')) return;
-    if (editingField === 'repeticiones' && !editValue) return;
-
-    try {
-      const updatedExercise = {
-        ...currentExercise,
-        [editingField]: editingField === 'peso' || editingField === 'series' 
-          ? parseFloat(editValue) || 0
-          : editingField === 'repeticiones'
-          ? editValue // Para repeticiones, guardamos el string del rango
-          : editValue.trim()
-      };
-
-      if (editingField === 'peso') {
-        const newWeight = parseFloat(editValue) || 0;
-        if (newWeight !== currentExercise.peso) {
-          updatedExercise.history = [
-            { date: new Date().toISOString(), weight: newWeight },
-            ...(currentExercise.history || [])
-          ];
-        }
-      }
-
-      const sanitizedExercise = sanitizeExercise(updatedExercise);
-      
-      const success = await StorageService.updateExercise(
-        dayKey,
-        exercise.id,
-        sanitizedExercise
-      );
-      
-      if (success) {
-        setCurrentExercise(updatedExercise);
-        setShowEditModal(false);
-        setEditingField(null);
-        setEditValue('');
-        
-        const fieldNames = {
-          nombre: 'nombre',
-          series: 'series',
-          repeticiones: 'repeticiones', 
-          peso: 'peso',
-          tipo: 'tipo',
-          notas: 'notas'
-        };
-        
-        setSuccessMessage(`${fieldNames[editingField]} actualizado correctamente`);
-        setShowSuccessModal(true);
-      } else {
-        throw new Error('No se pudo actualizar el campo');
-      }
-    } catch (error) {
-      console.error('Error al actualizar campo:', error);
-      setErrorMessage('No se pudo actualizar el campo. Por favor intenta de nuevo.');
-      setShowErrorModal(true);
-      setShowEditModal(false);
-    }
   };
 
   const getFieldLabel = (field) => {
@@ -332,7 +347,7 @@ const ExerciseDetailScreen = ({navigation, route}) => {
                      {new Date(record.date).toLocaleDateString()}
                    </Text>
                    <Text style={styles.historyWeight}>
-                     {record.weight} kg
+                     {record.weight} kg - {record.sets}x{record.reps}
                    </Text>
                  </View>
                ))

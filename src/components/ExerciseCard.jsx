@@ -9,7 +9,7 @@ import {
 import {colors} from '../styles/colors';
 import {globalStyles} from '../styles/globalStyles';
 
-const ExerciseCard = ({exercise, onPress, onDelete}) => {
+const ExerciseCard = ({exercise, onPress, onDelete, completedSets, totalSets, onSetToggle}) => {
   const handleLongPress = () => {
     Alert.alert(
       'Opciones',
@@ -22,6 +22,40 @@ const ExerciseCard = ({exercise, onPress, onDelete}) => {
     );
   };
 
+  const renderSetIndicators = () => {
+    if (!totalSets) return null;
+    let bubbles = [];
+    for (let i = 0; i < totalSets; i++) {
+      const isCompleted = i < completedSets;
+      bubbles.push(
+        <View 
+          key={i} 
+          style={[styles.setBubble, isCompleted && styles.setBubbleActive]} 
+        />
+      );
+    }
+    
+    // Si está completo mostramos un check verde para el ejercicio
+    const isExerciseFinished = completedSets >= totalSets;
+
+    return (
+      <TouchableOpacity 
+        style={styles.setsProgressContainer} 
+        onPress={(e) => {
+          e.stopPropagation(); // Evita que se dispare el onPress del Card entero
+          onSetToggle();
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.setsProgressLabel}>Series:</Text>
+        <View style={styles.bubblesContainer}>
+          {bubbles}
+        </View>
+        {isExerciseFinished && <Text style={{marginLeft: 8, fontSize: 16}}>✅</Text>}
+      </TouchableOpacity>
+    );
+  };
+    
   return (
     <TouchableOpacity
       style={[globalStyles.card, styles.card]}
@@ -50,6 +84,8 @@ const ExerciseCard = ({exercise, onPress, onDelete}) => {
         </View>
       </View>
 
+      {renderSetIndicators()}
+      
       {exercise.notas && (
         <View style={styles.notesContainer}>
           <Text style={styles.notesLabel}>Notas:</Text>
@@ -113,6 +149,45 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: '600',
   },
+    setsProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray200,
+  },
+  setsProgressLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginRight: 10,
+  },
+  bubblesContainer: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  setBubble: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.gray300,
+    backgroundColor: 'transparent',
+  },
+  setBubbleActive: {
+    backgroundColor: colors.success || '#4CAF50', // Agrega este color a tu archivo colors si no está
+    borderColor: colors.success || '#4CAF50',
+  },
+  cardCompleted: {
+    opacity: 0.8,
+    backgroundColor: '#FAFAFA'
+  },
+  exerciseNameCompleted: {
+    textDecorationLine: 'line-through',
+    color: colors.gray400
+  }
 })
 
 export default ExerciseCard;
